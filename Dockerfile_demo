@@ -1,0 +1,56 @@
+FROM ubuntu
+MAINTAINER kailash verma <kailashv@cybage.com>
+
+# Install packages
+ENV DEBIAN_FRONTEND noninteractive
+RUN apt-get update && \
+apt-get -y install mysql-server-5.6 && \
+rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update
+
+ENV TOMCATVER 7.0.59
+
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --force-yes openjdk-7-jre-headless wget
+RUN (wget -O /tmp/tomcat7.tar.gz http://www.us.apache.org/dist/tomcat/tomcat-7/v${TOMCATVER}/bin/apache-tomcat-${TOMCATVER}.tar.gz && \
+    cd /opt && \
+    tar zxf /tmp/tomcat7.tar.gz && \
+    mv /opt/apache-tomcat* /opt/tomcat && \
+    rm /tmp/tomcat7.tar.gz && \
+    ls -a)
+
+ADD ./run.sh /usr/local/bin/run
+
+# Remove pre-installed database
+RUN rm -rf /var/lib/mysql/*
+
+# Remove syslog configuration
+RUN rm /etc/mysql/conf.d/mysqld_safe_syslog.cnf
+
+# Add MySQL configuration
+ADD my.cnf /etc/mysql/conf.d/my.cnf
+ADD mysqld_charset.cnf /etc/mysql/conf.d/mysqld_charset.cnf
+
+ENV MYSQL_USER admin
+ENV MYSQL_PASS: admin
+
+# Replication ENV
+ENV REPLICATION_MASTER **False**
+ENV REPLICATION_SLAVE **False**
+# Add VOLUMEs to allow backup of config and databases
+VOLUME ["/etc/mysql", "/var/lib/mysql"]
+
+
+
+### to deploy a specific war to ROOT, uncomment the following 2 lines and specify the appropriate .war
+RUN rm -rf /opt/tomcat/webapps/docs /opt/tomcat/webapps/examples /opt/tomcat/webapps/ROOT
+ADD ALMretry32.war /opt/tomcat/webapps/ROOT.war
+ADD rms.sql /temp/rms.sql
+
+EXPOSE 8080
+EXPOSE 3306
+CMD ["/bin/sh", "-e", "/usr/local/bin/run"]
+
+
+
+
